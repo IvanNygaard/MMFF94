@@ -24,7 +24,7 @@ public:
         arma::mat xyz_mat;
 	std::vector<std::pair<double, arma::vec>> neighbor_vec;
 	std::vector<Bond> bond_vec; 
-	arma::vec bond_angles; 
+	std::vector<double> bond_angles; 
 	arma::mat out_of_plane_angles; 
 	arma::mat torsiona_angles; 
 
@@ -45,6 +45,9 @@ public:
                         std::pair<double, arma::vec> entry = {enumerated_atom_vec(i), neighbors};
                         neighbor_vec.push_back(entry);
                 }
+	std::cout << "Number of atoms in molecule: " << nr_atoms << std::endl;
+	std::cout << "Cartesian coordinates of atoms:" << std::endl;
+	xyz_mat.print(); 
         }
 
 
@@ -75,11 +78,17 @@ public:
 				}
                        	}
         	}
+	std::cout << "Chemical bonds [Å]:" << std::endl;
+	
+	for (const auto& bond : bond_vec) {
+    		std::cout << bond.atom1 << "-" << bond.atom2 << " " << bond.distance << std::endl;
+		}
+
 	}
 
 
-
 	void getBondAngles () {
+		std::cout << "Bond angles [deg]" << std::endl;
 		for (int i = 0; i < bond_vec.size(); i++) {
 			for (int j = 0; j < i; j++) {
 				int center_atom; 
@@ -106,10 +115,9 @@ public:
 					}
 
 					angle = acos(arma::dot(getUnitVector(xyz_mat.row(center_atom).t(), xyz_mat.row(external_atom1).t()), getUnitVector(xyz_mat.row(center_atom).t(), xyz_mat.row(external_atom2).t()))) * (180.0/acos(-1.0)); 
-	                		//bond_angles.insert_rows(bond_angles.n_rows, angle);
+	                		bond_angles.push_back(angle);  
 								
-					std::cout << external_atom1 << " " << center_atom << " " << external_atom2 << std::endl;
-					std::cout << angle << std::endl;
+					std::cout << external_atom1 << "-" << center_atom << "-" << external_atom2 << " " << angle << std::endl;
 				}
 			}
 		}	
@@ -176,37 +184,5 @@ int main(int argc, char** argv) {
 	mol.makeNeighborList(); 
         mol.makeChemicalBonds();
 	mol.getBondAngles();
-
-	
-	std::cout << "mol.nr_atoms" << std::endl;
-	std::cout << mol.nr_atoms << std::endl;
-	std::cout << "mol.atom_vec" << std::endl;
-	std::cout << mol.atom_vec << std::endl;
-	std::cout << "xyz_mat"      << std::endl; 
-	std::cout << mol.xyz_mat << std::endl;
-	std::cout << "mol.neighbor_vec" << std::endl;
-
-for (size_t i = 0; i < mol.neighbor_vec.size(); ++i) {
-    const auto& entry = mol.neighbor_vec[i];
-    std::cout << "Atom: " << entry.first << " has neighbors: ";
-
-    for (size_t j = 0; j < entry.second.n_elem; ++j) {
-        std::cout << entry.second(j);
-        if (j != entry.second.n_elem - 1)
-            std::cout << ", ";
-    }
-
-    std::cout << std::endl;
-}
-
-for (const auto& bond : mol.bond_vec) {
-    std::cout << "Bond between atom1: " << bond.atom1 
-              << " and atom2: " << bond.atom2 
-              << " with distance: " << bond.distance << std::endl;
-}
-
-	std::cout << "bond angles" << std::endl;
-	mol.bond_angles.print(); 
-
 return 0;
 }
