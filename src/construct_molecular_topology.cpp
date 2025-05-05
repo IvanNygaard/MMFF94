@@ -25,8 +25,9 @@ public:
 	std::vector<std::pair<double, arma::vec>> neighbor_vec;
 	std::vector<Bond> bond_vec; 
 	std::vector<double> bond_angles; 
-	arma::mat out_of_plane_angles; 
-	arma::mat torsiona_angles; 
+	std::vector<double> wilson_angles;    								 // out of plane angles 
+	std::vector<double> torsional_angles; 
+        std::vector<std::pair<double, double>> interacting_atoms; 
 
         // Methods
         void makeNeighborList () {
@@ -114,13 +115,129 @@ public:
 						external_atom2 = bond_vec[j].atom1;
 					}
 
-					angle = acos(arma::dot(getUnitVector(xyz_mat.row(center_atom).t(), xyz_mat.row(external_atom1).t()), getUnitVector(xyz_mat.row(center_atom).t(), xyz_mat.row(external_atom2).t()))) * (180.0/acos(-1.0)); 
+					angle = acos(arma::dot(getUnitVector(xyz_mat.row(center_atom).t(), xyz_mat.row(external_atom1).t()), getUnitVector(xyz_mat.row(center_atom).t(), xyz_mat.row(external_atom2).t()))); 
 	                		bond_angles.push_back(angle);  
 								
-					std::cout << external_atom1 << "-" << center_atom << "-" << external_atom2 << " " << angle << std::endl;
+					std::cout << external_atom1 << "-" << center_atom << "-" << external_atom2 << " " << angle * (180.0/acos(-1.0)) << std::endl;
 				}
 			}
 		}	
+
+	void getWilsonAngles () {
+		double wilson_angle;
+		double phijk; 
+		
+		arma::vec e1;
+		arma::vec e2;
+		arma::vec e3;
+
+		std::cout << "Wilson angles [deg]" << std::endl;
+                for (int center = 0; center < atom_vec.size(); center++) {
+		std::vector<double> bondedto;
+			for (int bond = 0; bond < bond_vec.size(); bond++) {
+				if (bond_vec[bond].atom1 == center) {
+					bondedto.push_back(bond_vec[bond].atom2);
+				} else if (bond_vec[bond].atom2 == center) {
+					bondedto.push_back(bond_vec[bond].atom1);
+				}
+			}
+	
+			if (bondedto.size() >= 3) { 
+
+                        	for (int i = 0; i < bondedto.size(); i++) {
+					for (int j = i + 1; j < bondedto.size(); j++) {
+						for(int k = 0; k < bondedto.size(); k++) {  											// identify a triplet of bonds
+							if (k != i && k != j) {
+				 				e1 = getUnitVector(xyz_mat.row(center).t(), xyz_mat.row(bondedto[i]).t());  
+								e2 = getUnitVector(xyz_mat.row(center).t(), xyz_mat.row(bondedto[j]).t());
+								e3 = getUnitVector(xyz_mat.row(center).t(), xyz_mat.row(bondedto[k]).t());
+
+								phijk = acos(arma::dot(e1, e2)); 
+								wilson_angle = asin(arma::dot(std::pow(sin(phijk), -1) * arma::cross(e1, e2), e3));
+
+								wilson_angles.push_back(wilson_angle);
+								std::cout << bond_vec[center].atom2 << "-" << bond_vec[center].atom1 << "-" << bond_vec[i].atom2 << "-" << bond_vec[k].atom2  << " " << wilson_angle * (180.0/acos(-1.0)) << std::endl;
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	void getTorsionalAngles () {
+		double torsional_angle; 
+		double bond_angle_tol = 1e-8;
+		double phijk;
+		double phjkl;
+
+		arma::vec e1; 
+		arma::vec e2;
+		arma::vec e3; 
+		arma::vec cross_e1e2;
+		arma::vec cross_e2e3;
+	
+		std::cout << "Torsional angles [deg]" << std::endl;
+		for (int bond = 0; bond < bond_vec.size(); bond++) {												// Identify C-C bond
+			if (atom_vec[bond_vec[bond].atom1] == 6 && atom_vec[bond_vec[bond].atom2] == 6) {
+				for (int neighbor1 : neighbor_vec[bond_vec[bond].atom1].second) {
+					for (int neighbor2 : neighbor_vec[bond_vec[bond].atom2].second) {
+						if (atom_vec[neighbor1] != 6 && atom_vec[neighbor2] != 6) {   							// Identify H-C-C-H structure 
+							e1 = getUnitVector(xyz_mat.row(neighbor1).t(), xyz_mat.row(bond_vec[bond].atom1).t());
+							e2 = getUnitVector(xyz_mat.row(bond_vec[bond].atom1).t(), xyz_mat.row(bond_vec[bond].atom2).t());
+							e3 = getUnitVector(xyz_mat.row(bond_vec[bond].atom2).t(), xyz_mat.row(neighbor2).t());
+
+
+							phijk = acos(arma::dot(-e1, e2));
+							phjkl = acos(arma::dot(-e2, e3));
+
+							cross_e1e2 = arma::cross(e1, e2);
+							cross_e2e3 = arma::cross(e2, e3);
+
+							double argument = arma::dot(cross_e1e2, cross_e2e3) * std::pow(sin(phijk) * sin(phjkl), -1);
+							argument = std::max(-1.0, std::min(1.0, argument)); 							// Had to clamp the argument because nan values appearing instead of 180deg due to the argument being -1.00000000001
+							torsional_angle = acos(argument); 
+	
+		
+							if (sin(phijk) >= bond_angle_tol or sin(phjkl) >= bond_angle_tol) { 					// Skip unphysical torsions	
+								torsional_angles.push_back(torsional_angle);
+								std::cout << neighbor1 << "-" << bond_vec[bond].atom1 << "-" << bond_vec[bond].atom2 << "-" << neighbor2 << " " << torsional_angle * (180.0/acos(-1.0)) << std::endl;
+							}	
+						}
+					}
+				}
+			}
+		}
+	}
+
+
+
+	void getInteractingAtoms() {
+                std::pair<double, double> interacting_pair;
+
+		arma::vec test2;
+
+                std::cout << "1-4 interacting pairs" << std::endl;
+                for (int i = 0; i < atom_vec.size(); i++) {
+                        for (int j = i+1; j < atom_vec.size(); j++) {                                                                                           // Loop over all unique pairs
+                                if (!arma::any(neighbor_vec[i].second == j)) {
+					for (int l : neighbor_vec[i].second) {
+                                        	test2 = arma::join_vert(test2, neighbor_vec[l].second);
+                                        }
+						
+                                        for (int k : neighbor_vec[i].second) {
+                                                if (atom_vec[k] == 6 && !arma::any(neighbor_vec[k].second == j) && !arma::any(test2 == static_cast<double>(j))) {
+                                                        interacting_pair = {i, j};
+                                                        std::cout << i << " " << j << std::endl;
+                                                        interacting_atoms.push_back(interacting_pair);
+                                                }
+                                        }
+					test2.reset();
+                                }
+                        }
+                }
+	std::cout << "Number of interacting pairs: " << interacting_atoms.size() << std::endl;
+        }
 };
 
 
@@ -184,5 +301,47 @@ int main(int argc, char** argv) {
 	mol.makeNeighborList(); 
         mol.makeChemicalBonds();
 	mol.getBondAngles();
+	mol.getWilsonAngles();
+	mol.getTorsionalAngles();
+	mol.getInteractingAtoms();
 return 0;
 }
+
+
+
+// Torsional debugging
+/* 
+std::cout << "\n--- Debugging Torsion Analysis ---" << std::endl;
+std::cout << "Bond index: " << bond << std::endl;
+std::cout << "Atom indices: atom1 = " << bond_vec[bond].atom1
+          << ", atom2 = " << bond_vec[bond].atom2 << std::endl;
+std::cout << "Atom types: atom1 = " << atom_vec[bond_vec[bond].atom1]
+          << ", atom2 = " << atom_vec[bond_vec[bond].atom2] << std::endl;
+
+std::cout << "Neighbors of atom1 (" << bond_vec[bond].atom1 << "): ";
+for (int n : neighbor_vec[bond_vec[bond].atom1].second) {
+    std::cout << n << " ";
+}
+std::cout << "\nNeighbors of atom2 (" << bond_vec[bond].atom2 << "): ";
+for (int n : neighbor_vec[bond_vec[bond].atom2].second) {
+    std::cout << n << " ";
+}
+
+std::cout << "\nTYPE OF Neighbors of atom1 (" << bond_vec[bond].atom1 << "): ";
+for (int n : neighbor_vec[bond_vec[bond].atom1].second) {
+    std::cout << atom_vec[n] << " ";
+}
+std::cout << std::endl;
+
+std::cout << "\nTYPES OFNeighbors of atom2 (" << bond_vec[bond].atom2 << "): ";
+for (int n : neighbor_vec[bond_vec[bond].atom2].second) {
+    std::cout << atom_vec[n] << " ";
+}
+std::cout << std::endl;
+
+std::cout << "Selected neighbors: neighbor1 = " << neighbor1
+          << ", neighbor2 = " << neighbor2 << std::endl;
+std::cout << "-----------------------------------\n" << std::endl;
+*/
+
+
