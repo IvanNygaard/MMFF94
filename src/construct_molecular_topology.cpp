@@ -239,7 +239,7 @@ public:
 	void getInteractingAtoms() {
                 std::pair<double, double> interacting_pair;
 
-		arma::vec test2;
+		arma::vec test2;															// neighborneighbor
 
                 std::cout << "1-4 interacting pairs" << std::endl;
                 for (int i = 0; i < atom_vec.size(); i++) {
@@ -391,13 +391,74 @@ double angleBendingEnergy(double angle, arma::vec atoms, Molecule mol) {
 }
 
 
+// Function used to evaluate the stretch-bend energy 
+double stretchBendEnergy(double angle, arma::vec atoms, Bond bond, Molecule mol) {
+	double energy; 
+	double kIJK; 
+	double kKJI;
+	double rij; 
+	double rkj;
+	double refdistanceij; 
+	double refdistancekj;	
+	double del_rij;
+	double del_rkj; 
+	double theta;
+	double reftheta;
+	double del_theta;
+
+	if (mol.atom_vec[atoms[0]] == 6 && mol.atom_vec[atoms[1]] == 6 && mol.atom_vec[atoms[2]] == 6) {														// C-C-C
+		kIJK = 0.206;
+		kKJI = 0.206;
+		refdistanceij = 1.508;
+		refdistancekj = 1.508;
+		reftheta = 109.608;	
+	}	
+
+	if (mol.atom_vec[atoms[0]] == 6 && mol.atom_vec[atoms[1]] == 6 && mol.atom_vec[atoms[2]] == 1) {               												 	// C-C-H
+		kIJK = 0.227;
+		kKJI = 0.070;
+		refdistanceij = 1.508;
+                refdistancekj = 1.093;
+		reftheta = 110.549;  
+	}
+	
+	if (mol.atom_vec[atoms[0]] == 1 && mol.atom_vec[atoms[1]] == 6 && mol.atom_vec[atoms[2]] == 6) {                                                                                                                // H-C-C
+		kIJK = 0.070;
+                kKJI = 0.227; 	
+		refdistanceij = 1.093;
+                refdistancekj = 1.508;
+		reftheta = 110.549;	
+
+        }
+
+	if (mol.atom_vec[atoms[0]] == 1 && mol.atom_vec[atoms[1]] == 6 && mol.atom_vec[atoms[2]] == 1) {                                        									// H-C-H
+        	kIJK = 0.115;
+		kKJI = 0.115;
+		refdistanceij = 1.093;
+                refdistancekj = 1.093;
+		reftheta = 108.836; 
+        }        
+
+	rij = euclideanDistance(mol.xyz_mat.row(atoms[1]).t(), mol.xyz_mat.row(atoms[0]).t());
+	rkj = euclideanDistance(mol.xyz_mat.row(atoms[1]).t(), mol.xyz_mat.row(atoms[2]).t());
 
 
+	for (int i = 0; i < mol.bond_angles.size(); i++) {
+		if (mol.bond_angles[i].second[0] == atoms[0] && mol.bond_angles[i].second[1] == atoms[1] && mol.bond_angles[i].second[2] == atoms[2]) {
+			theta = mol.bond_angles[i].first; 
+		} 
+	}
 
+	del_rij   = rij - refdistanceij;
+	del_rkj   = rkj - refdistancekj;
+	del_theta = theta - reftheta;
 
-// Function used to evaluate the strecth-bend energy 
+	energy = 2.51210 * (kIJK * del_rij + kKJI * del_rkj) * del_theta; 
 
+	return energy; 
+}
 
+// Brute force compute the euclidan distance between the center atom and the neighbors then loop through the theta vector and picj the angle with the IJK vector of [atoms[0], atoms[1], atoms[2]]. 
 
 
 // Function used to evlaute the out of plane bending energy at triicoordinate centers 
@@ -419,7 +480,70 @@ double torsionEnergy(double torsional_angle, Molecule mol) {
 
 
 
-// Function used to evaluate the van der waals energy steming from van der Waals interactions
+// Function used to evaluate the Van der Waals energy
+double vdwEnergy(std::pair<double, double> atoms, Molecule mol) {
+	double energy; 
+	double Rij; 
+	double gammaIJ;
+	double epsilonIJ; 
+	double RIJstar;
+	double RIIstar;
+	double RJJstar;
+	double alphaI;
+	double alphaJ;
+	double AI;
+	double AJ; 
+	double NI; 
+	double NJ;
+	double GI;
+	double GJ; 
+	
+	if (mol.atom_vec[atoms.first] == 6 && mol.atom_vec[atoms.second] == 6) {   			// C - - C interaction 
+		alphaI = 1.050;
+		alphaJ = 1.050;
+		AI = 3.890;
+		AJ = 3.890;
+		NI = 2.490;
+		NJ = 2.490; 
+		GI = 1.282; 
+		GJ = 1.282;
+	}
+
+	if ((mol.atom_vec[atoms.first] == 6 && mol.atom_vec[atoms.second] == 1) || (mol.atom_vec[atoms.first] == 1 && mol.atom_vec[atoms.second] == 6)) {                        // C - - H interaction
+		alphaI = 1.050; 
+		alphaJ = 0.250;
+		AI = 3.890;
+                AJ = 4.200;
+                NI = 2.490;
+                NJ = 0.800; 
+                GI = 1.282; 
+                GJ = 1.209;
+        }
+
+	if (mol.atom_vec[atoms.first] == 1 && mol.atom_vec[atoms.second] == 1) {                        // H - - H interaction
+                alphaI = 0.250;
+                alphaJ = 0.250;
+                AI = 4.200;
+                AJ = 4.200;
+                NI = 0.800;
+                NJ = 0.800;
+                GI = 1.209;
+                GJ = 1.209;
+        }
+
+
+	RIIstar = AI * std::pow(alphaI, 0.25); 
+	RJJstar = AJ * std::pow(alphaJ, 0.25);
+	gammaIJ = (RIIstar - RJJstar) * std::pow((RIIstar + RJJstar), -1); 
+	RIJstar = 0.5 * (RIIstar + RJJstar) * (1 + 0.2 * (1 - std::exp(-12 * std::pow(gammaIJ, 2))));
+	epsilonIJ = 181.16 * GI * GJ * alphaI * alphaJ * std::pow(std::pow(alphaI * std::pow(NI, -1), 0.5) + std::pow(alphaJ * std::pow(NJ, -1), 0.5), -1) * std::pow(RIJstar, -6);
+	
+	Rij = euclideanDistance(mol.xyz_mat.row(atoms.first).t(), mol.xyz_mat.row(atoms.second).t());
+	std::cout << Rij << std::endl;
+	energy = epsilonIJ * std::pow(1.07 * RIJstar * std::pow((Rij + 0.07 * RIJstar), -1) , 7) * (1.12 * std::pow(RIJstar, 7) * std::pow((std::pow(Rij, 7) + 0.12 * std::pow(RIJstar, 7)), -1) - 2); 
+	
+	return energy; 
+}
 
 
 
@@ -475,6 +599,12 @@ int main(int argc, char** argv) {
 		angle_bending_energy += angleBendingEnergy(mol.bond_angles[i].first, mol.bond_angles[i].second, mol);
 	}
 
+	
+	// Compute stretch-bend interactions: 
+	double stretch_bending_energy; 
+	for (int i = 0; i < mol.bond_angles.size(); i++) {
+		stretch_bending_energy += stretchBendEnergy(mol.bond_angles[i].first, mol.bond_angles[i].second, mol.bond_vec[i], mol); 
+	}
 
 	// Compute torsional energy:
 	double torsional_energy;
@@ -482,11 +612,18 @@ int main(int argc, char** argv) {
 		torsional_energy += torsionEnergy(mol.torsional_angles[i], mol); 
 	}
 
+	// Compute the VdWEnergy:
+	double VdW_energy; 
+	for (int i = 0; i < mol.interacting_atoms.size(); i++) {
+		VdW_energy += vdwEnergy(mol.interacting_atoms[i], mol);
+	}
 
-	std::cout << "bond_stretching_energy  [kJ/mol]" << " " << bond_stretching_energy << std::endl; 
-	std::cout << "angle_bending_energy    [kJ/mol]" << " " << angle_bending_energy   << std::endl;
-	std::cout << "torsional_energy        [kJ/mol]" << " " << torsional_energy	 << std::endl;
 
+	std::cout << "bond_stretching_energy  [kcal/mol]" << " " << bond_stretching_energy << std::endl; 
+	std::cout << "angle_bending_energy    [kcal/mol]" << " " << angle_bending_energy   << std::endl;
+	std::cout << "stretch_bending_energy  [kcal/mol]" << " " << stretch_bending_energy << std::endl; 
+	std::cout << "torsional_energy        [kcal/mol]" << " " << torsional_energy	   << std::endl;
+	std::cout << "vdw_energy 	      [kcal/mol]" << " " << VdW_energy  	   << std::endl;
 
 return 0;
 }
