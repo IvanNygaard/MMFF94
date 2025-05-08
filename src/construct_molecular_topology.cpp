@@ -3,7 +3,7 @@
 #include<armadillo>
 #include<cmath>
 #include<set>
-#include "math_functions.h"
+#include"math_functions.h"
 
 /*
 STRUCTS AND CLASSES USED TO CONSTRUCT THE MOLECULAR TOPOLOGY:
@@ -131,12 +131,16 @@ public:
 					atoms = {external_atom1, center_atom, external_atom2}; 
 	                		bond_angles.push_back(std::make_pair(angle, atoms));  
 								
-					std::cout << external_atom1 << "-" << center_atom << "-" << external_atom2 << " " << angle * (180.0/acos(-1.0)) << std::endl;
+					std::cout << external_atom1 << "-" << center_atom << "-" << external_atom2 << " " << angle << std::endl;
 				}
 			}
 		}
 
 
+/*
+This function computes the OOP angles at tri coordinate centers however I did not realize that koop parameters needed to compute the energies are not given for H-C-C-C or H-C-C-H etc. becuase Out-of-plane (OOP) bending terms are only relevant for planar (sp²) centers (like aromatics, alkenes, amides) where planarity needs to be enforced. In the MMFF94 parameter set, there are no KOOP parameters for combinations like C-C-C-H or H-C-C-H involving only sp³ carbons and hydrogens. Note that is works only for methane and ethane starts double-counting in propane. 
+
+ 
 	void getOOPAngles() {
     		double improper_angle;
     		double phijk;
@@ -187,7 +191,8 @@ public:
 				}		
 			}
 		}
-	
+*/
+
 
 	void getTorsionalAngles () {
 		double torsional_angle; 
@@ -220,6 +225,7 @@ public:
 
 							double argument = arma::dot(cross_e1e2, cross_e2e3) * std::pow(sin(phijk) * sin(phjkl), -1);			
 							argument = std::max(-1.0, std::min(1.0, argument)); 						// Had to clamp the argument because nan values appearing instead of 180deg due to the argument being -1.00000000001																			
+
 							torsional_angle = acos(argument); 
 	
 		
@@ -235,36 +241,66 @@ public:
 	}
 
 
-
+/*
+OLD BUGGY VERSION
 	void getInteractingAtoms() {
                 std::pair<double, double> interacting_pair;
 
-		arma::vec test2;															// neighborneighbor
+		arma::vec neighbors_of_neighbors;															// neighborneighbor
 
                 std::cout << "1-4 interacting pairs" << std::endl;
                 for (int i = 0; i < atom_vec.size(); i++) {
                         for (int j = i+1; j < atom_vec.size(); j++) {                                                                                   // Loop over all unique pairs
                                 if (!arma::any(neighbor_vec[i].second == j)) {
 					for (int l : neighbor_vec[i].second) { 
-                                        	test2 = arma::join_vert(test2, neighbor_vec[l].second);                					// Exclude neighbors and neighbors of neighbors
+                                        	neighbors_of_neighbors = arma::join_vert(neighbors_of_neighbors, neighbor_vec[l].second);                					// Exclude neighbors and neighbors of neighbors
                                         }
+
 						
                                         for (int k : neighbor_vec[i].second) {
-                                                if (atom_vec[k] == 6 && !arma::any(neighbor_vec[k].second == j) && !arma::any(test2 == static_cast<double>(j))) {
+                                                if (!arma::any(neighbor_vec[k].second == j) && !arma::any(neighbors_of_neighbors == static_cast<double>(j))) {
                                                         interacting_pair = {i, j};
                                                         std::cout << i << " " << j << std::endl;
                                                         interacting_atoms.push_back(interacting_pair);
                                                 }
                                         }
-					test2.reset();
+					neighbors_of_neighbors.reset();
                                 }
                         }
                 }
-	std::cout << "Number of interacting pairs: " << interacting_atoms.size() << std::endl;
         }
+*/
+
+// NEW WORKING VERSION
+void getInteractingAtoms() {
+    std::pair<double, double> interacting_pair;
+    arma::vec neighbors_of_neighbors;
+
+    std::cout << "1-4 interacting pairs" << std::endl;
+    for (int i = 0; i < atom_vec.size(); i++) {
+        for (int j = i + 1; j < atom_vec.size(); j++) {
+            // Skip if j is a direct neighbor
+            if (arma::any(neighbor_vec[i].second == j))
+                continue;
+
+            // Build neighbors-of-neighbors list
+            neighbors_of_neighbors.reset();
+            for (int l : neighbor_vec[i].second) {
+                neighbors_of_neighbors = arma::join_vert(neighbors_of_neighbors, neighbor_vec[l].second);
+            }
+
+            // Skip if j is a second neighbor (i.e. 1-3 interaction)
+            if (arma::any(neighbors_of_neighbors == static_cast<double>(j)))
+                continue;
+
+            // If j is not a 1-2 or 1-3 interaction, then it's 1-4 or longer
+            interacting_pair = {i, j};
+            std::cout << i << " " << j << std::endl;
+            interacting_atoms.push_back(interacting_pair);
+        }
+    }
+}
 };
-
-
 /*
 FUNCTIONS USED TO CONSTRUCT THE MOLECULAR TOPOLOGY:
 */
@@ -292,7 +328,7 @@ arma::mat readFile(std::string filename) {
 }
 
 
-// Function used to enumerate an arma::vec object. 
+// Function used to enumerate an arma::vec object.  // move this to math_functions.h
 arma::vec enumerateVector(arma::vec vector) {
 	for (int i = 0; i < vector.n_elem; i++) {
 		vector(i) = i;
@@ -312,7 +348,7 @@ Molecule buildMolecule(arma::mat input_data) {
         molecule.makeNeighborList();
         molecule.makeChemicalBonds();
         molecule.getBondAngles();
-        molecule.getOOPAngles();
+        //molecule.getOOPAngles();
         molecule.getTorsionalAngles();
         molecule.getInteractingAtoms();
 
@@ -383,6 +419,7 @@ double angleBendingEnergy(double angle, arma::vec atoms, Molecule mol) {
 
 	if (std::abs(theta - 180.0) <= angle_tol) {												// MMFF treats linear and non linear bonds using a different equations for the angle bending energy. 
 		energy = 143.9325 * ka * (1 + cos(theta));
+		std::cout << "we're doomed " << std::endl;
 	} else {
 		energy = 0.043844 * ka * 0.5 * std::pow(del_theta, 2) * (1 + cb * del_theta); 
 	}
@@ -461,19 +498,15 @@ double stretchBendEnergy(double angle, arma::vec atoms, Bond bond, Molecule mol)
 // Brute force compute the euclidan distance between the center atom and the neighbors then loop through the theta vector and picj the angle with the IJK vector of [atoms[0], atoms[1], atoms[2]]. 
 
 
-// Function used to evlaute the out of plane bending energy at triicoordinate centers 
-
-
-
-
 // Function used to evaluate the torsion interaction energy
 double torsionEnergy(double torsional_angle, Molecule mol) {
 	double energy; 
+	double reference_point = 0; //1.10558; 													// Get all torsions to be positive. 
 	double V1 = 0.284;															// Since only linear alkanes are being considered H-C-C-H is the only possible combination that can form a torsional angle. 
 	double V2 = -1.386;
 	double V3 = 0.314;
 
-	energy = 0.5 * (V1 * (1 + cos(torsional_angle)) + V2 * (1 - cos(2 * torsional_angle)) + V3 * (1 + cos(3 * torsional_angle)));
+	energy = 0.5 * (V1 * (1 + cos(torsional_angle)) + V2 * (1 - cos(2 * torsional_angle)) + V3 * (1 + cos(3 * torsional_angle))) + reference_point;
 	
 	return energy; 
 }
@@ -539,7 +572,6 @@ double vdwEnergy(std::pair<double, double> atoms, Molecule mol) {
 	epsilonIJ = 181.16 * GI * GJ * alphaI * alphaJ * std::pow(std::pow(alphaI * std::pow(NI, -1), 0.5) + std::pow(alphaJ * std::pow(NJ, -1), 0.5), -1) * std::pow(RIJstar, -6);
 	
 	Rij = euclideanDistance(mol.xyz_mat.row(atoms.first).t(), mol.xyz_mat.row(atoms.second).t());
-	std::cout << Rij << std::endl;
 	energy = epsilonIJ * std::pow(1.07 * RIJstar * std::pow((Rij + 0.07 * RIJstar), -1) , 7) * (1.12 * std::pow(RIJstar, 7) * std::pow((std::pow(Rij, 7) + 0.12 * std::pow(RIJstar, 7)), -1) - 2); 
 	
 	return energy; 
@@ -569,21 +601,6 @@ int main(int argc, char** argv) {
 	// Build molecule 
 	Molecule mol;
 	mol = buildMolecule(input_mat);
-
-	std::cout << "In main" << std::endl; 
-	std::cout << "mol.nr_atoms" << mol.nr_atoms << std::endl;
-	std::cout << "mol.atom_vec" << std::endl;
-	mol.atom_vec.print();
-	std::cout << "mol.enumerated_atom_vec" <<  std::endl;
-	mol.enumerated_atom_vec.print(); 
-	std::cout << "xyz_mat" << std::endl;
-	mol.xyz_mat.print();
-	std::cout << "mol.neighbor_vec.size()" << mol.neighbor_vec.size() << std::endl; 
-	std::cout << "mol.bond_vec.size()" << mol.bond_vec.size() << std::endl;
-	std::cout << "mol.bond_angles.size()"<< mol.bond_angles.size() << std::endl;
-	std::cout << "mol.improper_angles.size()" << mol.improper_angles.size() << std::endl;
-	std::cout << "mol.torsional_angles.size()" << mol.torsional_angles.size() << std::endl;
-	std::cout << "mol.interacting_atoms.size()" << mol.interacting_atoms.size() << std::endl;
 
 
 	// Compute bond energy: 
@@ -624,6 +641,57 @@ int main(int argc, char** argv) {
 	std::cout << "stretch_bending_energy  [kcal/mol]" << " " << stretch_bending_energy << std::endl; 
 	std::cout << "torsional_energy        [kcal/mol]" << " " << torsional_energy	   << std::endl;
 	std::cout << "vdw_energy 	      [kcal/mol]" << " " << VdW_energy  	   << std::endl;
+	std::cout << "Number of bonds: " <<  mol.bond_vec.size() << std::endl;
+	std::cout << "Number of angles: " <<  mol.bond_angles.size() << std::endl; 
+	std::cout << "Number of interacting pairs: " << mol.interacting_atoms.size() << std::endl;
+
+	/*
+	// Torsion debugging: 
+	std::cout << "TORSION DEBUGGING" << std::endl;
+	const double step = 0.1;
+    	for (double theta = 0.0; theta <= 2 * M_PI; theta += step) {
+        	double energy = torsionEnergy(theta, mol);
+        	std::cout << theta << "," << energy << "\n";
+    	}
+	*/
+
+	// DEBUGGING:
+	std::cout << "Atom connectivity (with element types):" << std::endl;
+for (int i = 0; i < mol.nr_atoms; ++i) {
+    std::string atom_type;
+    if (mol.atom_vec(i) == 6) atom_type = "C";
+    else if (mol.atom_vec(i) == 1) atom_type = "H";
+    else atom_type = "X"; // Unknown atom
+
+    std::cout << "Atom " << i << " (" << atom_type << ") is bonded to: ";
+    
+    std::vector<int> connected_atoms;
+    for (const Bond& bond : mol.bond_vec) {
+        if (bond.atom1 == i) {
+            connected_atoms.push_back(bond.atom2);
+        } else if (bond.atom2 == i) {
+            connected_atoms.push_back(bond.atom1);
+        }
+    }
+
+    if (connected_atoms.empty()) {
+        std::cout << "none";
+    } else {
+        for (size_t j = 0; j < connected_atoms.size(); ++j) {
+            int neighbor_idx = connected_atoms[j];
+            std::string neighbor_type;
+            if (mol.atom_vec(neighbor_idx) == 6) neighbor_type = "C";
+            else if (mol.atom_vec(neighbor_idx) == 1) neighbor_type = "H";
+            else neighbor_type = "X";
+
+            std::cout << neighbor_idx << " (" << neighbor_type << ")";
+            if (j < connected_atoms.size() - 1) std::cout << ", ";
+        }
+    }
+    std::cout << std::endl;
+}
+
+std::cout << "TORSIONAL ANGLES" << mol.torsional_angles.size() << std::endl;
 
 return 0;
 }
