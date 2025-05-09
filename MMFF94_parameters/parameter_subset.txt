@@ -1,0 +1,55 @@
+SYMBOL  TYPE  DEFINITION
+CR      1     ALKYL CARBON, SP3
+HC      5     H ATTACHED TO C
+
+
+
+BOND-STRETCHING:
+types      kb        r0      
+1    1     4.258     1.508   
+1    5     4.766     1.093  
+
+
+
+ANGLE-BENDING: 
+atom types      ka      theta0    
+1    1    1     0.851   109.608  
+1    1    5     0.636   110.549   
+5    1    5     0.516   108.836   
+
+
+
+STRETCH-BEND
+types I, J, K    kbaIJK    kbaKJI  
+1    1    1      0.206     0.206   			
+1    1    5      0.227     0.070   
+5    1    5      0.115     0.115
+
+
+
+OUT-OF-PLANE BENDING
+??? 
+
+
+
+TORSION 
+atom types          V1      V2      V3
+5    1    1    5    0.284  -1.386   0.314
+
+
+
+VAN DER WAALS 
+type    alpha     N      A      G
+1       1.050    2.490   3.890  1.282
+5       0.250    0.800   4.200  1.209
+
+
+
+ELECTROSTATICS
+type    rho  
+1	0	
+5      -0.023
+
+
+
+Since the code is limited to linear alkanes these are the only parameters needed and they are directly implemented into the function that compute the different energy contributions. 

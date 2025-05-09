@@ -7,6 +7,7 @@ double euclideanDistance(arma::vec vec1, arma::vec vec2) {
 }
 
 
+
 // Function used to get the unit vector in the vec1 -> vec2 direction: 
 arma::vec getUnitVector(arma::vec vec1, arma::vec vec2) { 
 	arma::vec unitvector;
@@ -27,6 +28,17 @@ arma::vec getUnitVector(arma::vec vec1, arma::vec vec2) {
 }
 
 
+
+// Function used to enumerate an arma::vec object.
+arma::vec enumerateVector(arma::vec vector) {
+        for (int i = 0; i < vector.n_elem; i++) {
+                vector(i) = i;
+        }
+        return vector; 
+}
+
+
+
 // Function used to compute the factorial of an integer n.
 int factorial(int n) {
         // Compute the factorial for an integer n >= 0.
@@ -39,6 +51,7 @@ int factorial(int n) {
         }
         return res;
 }
+
 
 
 // Function used to compute the binomial coefficient (nCk): 
