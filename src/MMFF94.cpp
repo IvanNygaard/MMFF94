@@ -271,8 +271,7 @@ void getTorsionalAngles () {
 		
 							if (sin(phijk) >= bond_angle_tol or sin(phjkl) >= bond_angle_tol) { 				// Skip unphysical torsions	
 								torsional_angles.push_back(std::make_pair(torsional_angle, atoms));			// Append in rad because will take the cosine 
-								std::cout << neighbor1 << "-" << bond_vec[bond].atom1 << "-" << bond_vec[bond].atom2 << "-" 
-                                                                << neighbor2 << " " << torsional_angle * (180.0/acos(-1.0)) << std::endl;
+								std::cout << neighbor1 << "-" << bond_vec[bond].atom1 << "-" << bond_vec[bond].atom2 << "-" << neighbor2 << " " << torsional_angle * (180.0/acos(-1.0)) << std::endl;
 							}	
 						} 
 		
@@ -296,8 +295,7 @@ void getTorsionalAngles () {
 
                                                         if (sin(phijk) >= bond_angle_tol or sin(phjkl) >= bond_angle_tol) {                             // Skip unphysical torsions
                                                                 torsional_angles.push_back(std::make_pair(torsional_angle, atoms));                     // Append in rad because will take the cosine.
-                                                                std::cout << neighbor1 << "-" << bond_vec[bond].atom1 << "-" << bond_vec[bond].atom2 << "-" << neighbor2 
-								<< " " << torsional_angle * (180.0/acos(-1.0)) << std::endl;
+                                                                std::cout << neighbor1 << "-" << bond_vec[bond].atom1 << "-" << bond_vec[bond].atom2 << "-" << neighbor2 << " " << torsional_angle * (180.0/acos(-1.0)) << std::endl;
                                                         }
 						}
 		
@@ -321,8 +319,7 @@ void getTorsionalAngles () {
                                                         
                                                         if (sin(phijk) >= bond_angle_tol or sin(phjkl) >= bond_angle_tol) {                             // Skip unphysical torsions
                                                                 torsional_angles.push_back(std::make_pair(torsional_angle, atoms));                     // Append in rad because will take the cosine.
-                                                                std::cout << neighbor1 << "-" << bond_vec[bond].atom1 << "-" << bond_vec[bond].atom2 << "-" << neighbor2 
-								<< " " << torsional_angle * (180.0/acos(-1.0)) << std::endl;
+                                                                std::cout << neighbor1 << "-" << bond_vec[bond].atom1 << "-" << bond_vec[bond].atom2 << "-" << neighbor2 << " " << torsional_angle * (180.0/acos(-1.0)) << std::endl;
                                                         }
                                                 }
 		
@@ -345,8 +342,7 @@ void getTorsionalAngles () {
                                                         atoms = {neighbor1,  bond_vec[bond].atom1, bond_vec[bond].atom2, neighbor2};
                                                         
                                                         if (sin(phijk) >= bond_angle_tol or sin(phjkl) >= bond_angle_tol) {                             // Skip unphysical torsions
-                                                                torsional_angles.push_back(std::make_pair(torsional_angle, atoms));                     // Append in rad because will take the cosine                                                                std::cout << neighbor1 << "-" << bond_vec[bond].atom1 << "-" << bond_vec[bond].atom2 << "-" << neighbor2 
-							<< " " << torsional_angle * (180.0/acos(-1.0)) << std::endl;
+                                                                torsional_angles.push_back(std::make_pair(torsional_angle, atoms));                     // Append in rad because will take the cosine                                                                std::cout << neighbor1 << "-" << bond_vec[bond].atom1 << "-" << bond_vec[bond].atom2 << "-" << neighbor2 << " " << torsional_angle * (180.0/acos(-1.0)) << std::endl;
                                                         }
                                                 }
 					}
