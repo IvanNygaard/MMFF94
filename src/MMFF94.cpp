@@ -15,7 +15,6 @@ struct Bond {
 	double distance;
 	int atom1;
 	int atom2;
-	// add other constants later e.g. force constant etc.
 };
 
 
@@ -29,13 +28,15 @@ public:
 	arma::mat xyz_mat;
 	std::vector<std::pair<int, arma::vec>> neighbor_vec;
 	std::vector<Bond> bond_vec;
-	std::vector<std::pair<double, std::array<int, 3>>> bond_angles;
-	std::vector<double> improper_angles;    								 // out of plane angles
-	std::vector<double> torsional_angles;
-	std::vector<std::pair<double, double>> interacting_atoms; 						 // vector holding pairs that are separated by three or more bonds
-	std::vector<std::pair<double, double>> atoms_1_4;							 // vector holding pairs that are separated by exactly three bonds
+	std::vector<std::pair<double, std::array<int, 3>>> bond_angles;                                         
+	std::vector<double> improper_angles;    					  		 // out of plane angles
+	std::vector<std::pair<double, std::array<int, 4>>> torsional_angles;
+	std::vector<std::pair<int, int>> interacting_atoms; 						 // vector holding pairs that are separated by three or more bonds
+
+
 
 	// Methods
+	// Method used to identify neighbouring atoms.
 	void makeNeighborList () {
 		double rH = 31 * 0.01;  					   			 // pm * 0.01 Å/pm, covalent radius H
 		double rC = 76 * 0.01;  					  			 // pm * 0.01 Å/pm, covalent radius sp^3 C
@@ -84,7 +85,7 @@ public:
 
 
 
-	// This method creates chemical bond structs between neighbouring atoms. TODO ADD CHECK THAT #BONDS = 3n + 1
+	// Method used to create chemical bond structs between neighbouring atoms. TODO ADD CHECK THAT #BONDS = 3n + 1
 	void makeChemicalBonds () {
 		for (int i = 0; i < nr_atoms; i++) {
 			for (int j : neighbor_vec[i].second) {
@@ -111,6 +112,7 @@ public:
 		}
 
 	}
+
 
 
 
@@ -156,8 +158,8 @@ public:
 
 
 
-	/*
-	This method computes the OOP angles at tricoordinate centers however I did not realize that koop parameters needed to compute the energies are not given for H-C-C-C or H-C-C-H etc. becuase Out-of-plane (OOP) bending terms are only relevant for planar (spB2) centers and thus koop parameters are given for e.g. aromatics, alkenes or amides where planarity needs to be enforced. In the MMFF94 parameter set, there are no KOOP parameters for combinations like C-C-C-H or H-C-C-H involving only spB3 carbons and hydrogens. Note that is works only fo methane and ethane. It starts couble counting some combinatiosn for propane and longer due to C-C-C bonding.
+/*
+This method computes the OOP angles at tricoordinate centers however I did not realize that koop parameters needed to compute the energies are not given for H-C-C-C or H-C-C-H etc. becuase Out-of-plane (OOP) bending terms are only relevant for planar (spB2) centers and thus koop parameters are given for e.g. aromatics, alkenes or amides where planarity needs to be enforced. In the MMFF94 parameter set, there are no KOOP parameters for combinations like C-C-C-H or H-C-C-H involving only sp^3 carbons and hydrogens. Note that this function only works for  methane and ethane. It starts double counting for propane and longer due to C-C-C bonding arrangement. 
 
 
 		void getOOPAngles() {
@@ -213,6 +215,8 @@ public:
 	*/
 
 
+
+// Function used to check if two atoms are bonded. 
 bool isBonded(double a1, double a2) {
        for (const Bond b : bond_vec) {
                if ((a1 == b.atom1 && a2 == b.atom2) || (a1 == b.atom2 && a2 == b.atom1)) {
@@ -222,6 +226,9 @@ bool isBonded(double a1, double a2) {
        return false;
        }
 
+
+
+// Method used to compute torsion angles. 
 void getTorsionalAngles () {
 		double torsional_angle; 
 		double bond_angle_tol = 1e-8;
@@ -233,6 +240,7 @@ void getTorsionalAngles () {
 		arma::vec e3; 
 		arma::vec cross_e1e2;
 		arma::vec cross_e2e3;
+		std::array<int, 4> atoms;
 	
 		std::cout << "--------------------------------" << std::endl;
 		std::cout << "Torsional angles [deg]" << std::endl;
@@ -255,18 +263,20 @@ void getTorsionalAngles () {
 							cross_e2e3 = arma::cross(e2, e3);
 
 							double argument = arma::dot(cross_e1e2, cross_e2e3) * std::pow(sin(phijk) * sin(phjkl), -1);			
-							argument = std::max(-1.0, std::min(1.0, argument)); 						// Had to clamp the argument because nan values appearing instead of 180deg due to the argument being -1.00000000001																			
+							argument = std::max(-1.0, std::min(1.0, argument)); 						// Avoid NaN																		
 
 							torsional_angle = acos(argument); 
+							atoms = {neighbor1,  bond_vec[bond].atom1, bond_vec[bond].atom2, neighbor2};
 	
 		
-							if (sin(phijk) >= bond_angle_tol or sin(phjkl) >= bond_angle_tol) { 					// Skip unphysical torsions	
-								torsional_angles.push_back(torsional_angle);							// Append in rad because will take the cosine of these later. 
-								std::cout << neighbor1 << "-" << bond_vec[bond].atom1 << "-" << bond_vec[bond].atom2 << "-" << neighbor2 << " " << torsional_angle * (180.0/acos(-1.0)) << std::endl;
+							if (sin(phijk) >= bond_angle_tol or sin(phjkl) >= bond_angle_tol) { 				// Skip unphysical torsions	
+								torsional_angles.push_back(std::make_pair(torsional_angle, atoms));			// Append in rad because will take the cosine 
+								std::cout << neighbor1 << "-" << bond_vec[bond].atom1 << "-" << bond_vec[bond].atom2 << "-" 
+                                                                << neighbor2 << " " << torsional_angle * (180.0/acos(-1.0)) << std::endl;
 							}	
 						} 
-
-						if (atom_vec[neighbor1] == 6 && atom_vec[neighbor2] == 6 && !isBonded(neighbor1, neighbor2)) {							// Identify a C-C-C-C structure 
+		
+						if (atom_vec[neighbor1] == 6 && atom_vec[neighbor2] == 6 && !isBonded(neighbor1, neighbor2)) {	        // Identify a C-C-C-C structure 
 							e1 = getUnitVector(xyz_mat.row(neighbor1).t(), xyz_mat.row(bond_vec[bond].atom1).t());
                                                         e2 = getUnitVector(xyz_mat.row(bond_vec[bond].atom1).t(), xyz_mat.row(bond_vec[bond].atom2).t());
                                                         e3 = getUnitVector(xyz_mat.row(bond_vec[bond].atom2).t(), xyz_mat.row(neighbor2).t());
@@ -279,18 +289,66 @@ void getTorsionalAngles () {
                                                         cross_e2e3 = arma::cross(e2, e3);
 
                                                         double argument = arma::dot(cross_e1e2, cross_e2e3) * std::pow(sin(phijk) * sin(phjkl), -1);
-                                                        argument = std::max(-1.0, std::min(1.0, argument));                                             // Had to clamp the argument because nan values appearing instead of 180deg due to the argument being -1.00000000001
+                                                        argument = std::max(-1.0, std::min(1.0, argument));                                             // Clamp to avoid NaN
 
-                                                        torsional_angle = acos(argument);
+							torsional_angle = acos(argument); 
+                                                        atoms = {neighbor1,  bond_vec[bond].atom1, bond_vec[bond].atom2, neighbor2};
 
-
-                                                        if (sin(phijk) >= bond_angle_tol or sin(phjkl) >= bond_angle_tol) {                                     // Skip unphysical torsions
-                                                                torsional_angles.push_back(torsional_angle);                                                    // Append in rad because will take the cosine of these later.
-                                                                std::cout << neighbor1 << "-" << bond_vec[bond].atom1 << "-" << bond_vec[bond].atom2 << "-" << neighbor2 << " " << torsional_angle * (180.0/acos(-1.0)) << std::endl;
+                                                        if (sin(phijk) >= bond_angle_tol or sin(phjkl) >= bond_angle_tol) {                             // Skip unphysical torsions
+                                                                torsional_angles.push_back(std::make_pair(torsional_angle, atoms));                     // Append in rad because will take the cosine.
+                                                                std::cout << neighbor1 << "-" << bond_vec[bond].atom1 << "-" << bond_vec[bond].atom2 << "-" << neighbor2 
+								<< " " << torsional_angle * (180.0/acos(-1.0)) << std::endl;
                                                         }
-
 						}
+		
+						 if (atom_vec[neighbor1] == 6 && atom_vec[neighbor2] == 1 && !isBonded(neighbor1, neighbor2)) {         // Identify a C-C-C-H structure
+                                                        e1 = getUnitVector(xyz_mat.row(neighbor1).t(), xyz_mat.row(bond_vec[bond].atom1).t());
+                                                        e2 = getUnitVector(xyz_mat.row(bond_vec[bond].atom1).t(), xyz_mat.row(bond_vec[bond].atom2).t());
+                                                        e3 = getUnitVector(xyz_mat.row(bond_vec[bond].atom2).t(), xyz_mat.row(neighbor2).t());
 
+                                                        
+                                                        phijk = acos(arma::dot(-e1, e2));
+                                                        phjkl = acos(arma::dot(-e2, e3));
+                                                        
+                                                        cross_e1e2 = arma::cross(e1, e2);
+                                                        cross_e2e3 = arma::cross(e2, e3);
+                                                        
+                                                        double argument = arma::dot(cross_e1e2, cross_e2e3) * std::pow(sin(phijk) * sin(phjkl), -1);    
+                                                        argument = std::max(-1.0, std::min(1.0, argument));                                             // Avoid NaN
+                                                        
+							torsional_angle = acos(argument); 
+                                                        atoms = {neighbor1,  bond_vec[bond].atom1, bond_vec[bond].atom2, neighbor2};
+                                                        
+                                                        if (sin(phijk) >= bond_angle_tol or sin(phjkl) >= bond_angle_tol) {                             // Skip unphysical torsions
+                                                                torsional_angles.push_back(std::make_pair(torsional_angle, atoms));                     // Append in rad because will take the cosine.
+                                                                std::cout << neighbor1 << "-" << bond_vec[bond].atom1 << "-" << bond_vec[bond].atom2 << "-" << neighbor2 
+								<< " " << torsional_angle * (180.0/acos(-1.0)) << std::endl;
+                                                        }
+                                                }
+		
+						 if (atom_vec[neighbor1] == 1 && atom_vec[neighbor2] == 6 && !isBonded(neighbor1, neighbor2)) {         // Identify a H-C-C-C structure
+                                                        e1 = getUnitVector(xyz_mat.row(neighbor1).t(), xyz_mat.row(bond_vec[bond].atom1).t());
+                                                        e2 = getUnitVector(xyz_mat.row(bond_vec[bond].atom1).t(), xyz_mat.row(bond_vec[bond].atom2).t());
+                                                        e3 = getUnitVector(xyz_mat.row(bond_vec[bond].atom2).t(), xyz_mat.row(neighbor2).t());
+
+                                                        
+                                                        phijk = acos(arma::dot(-e1, e2));
+                                                        phjkl = acos(arma::dot(-e2, e3));
+                                                        
+                                                        cross_e1e2 = arma::cross(e1, e2);
+                                                        cross_e2e3 = arma::cross(e2, e3);
+                                                        
+                                                        double argument = arma::dot(cross_e1e2, cross_e2e3) * std::pow(sin(phijk) * sin(phjkl), -1);    
+                                                        argument = std::max(-1.0, std::min(1.0, argument));                                             // Avoid NaN
+                                                        
+							torsional_angle = acos(argument); 
+                                                        atoms = {neighbor1,  bond_vec[bond].atom1, bond_vec[bond].atom2, neighbor2};
+                                                        
+                                                        if (sin(phijk) >= bond_angle_tol or sin(phjkl) >= bond_angle_tol) {                             // Skip unphysical torsions
+                                                                torsional_angles.push_back(std::make_pair(torsional_angle, atoms));                     // Append in rad because will take the cosine                                                                std::cout << neighbor1 << "-" << bond_vec[bond].atom1 << "-" << bond_vec[bond].atom2 << "-" << neighbor2 
+							<< " " << torsional_angle * (180.0/acos(-1.0)) << std::endl;
+                                                        }
+                                                }
 					}
 				}
 			}
@@ -299,7 +357,8 @@ void getTorsionalAngles () {
 
 
 
-// This function computes the pairs of 1-4 interacting atoms and beyond i.e. pairs of atoms with three or more bonds between them for which vdw and electrostatic interactions become relevant.
+
+// Function used to compute pairs of 1-4 interacting atoms and beyond i.e. pairs of atoms with three or more bonds between them for which vdw and electrostatic interactions become relevant.
 	void getInteractingAtoms() {
 		std::pair<double, double> interacting_pair;
 		std::pair<double, double> one_four_interacting_pair;
@@ -360,8 +419,6 @@ arma::mat readFile(std::string filename) {
 
 
 
-
-
 // Function used to construct the molecular topology
 Molecule buildMolecule(arma::mat input_data) {
 	Molecule molecule;
@@ -409,7 +466,7 @@ double bondStretchingEnergy(Bond bond, Molecule mol) {
 
 
 
-// Function used to evaluate the angle bending energy
+// Function used to evaluate the angle bending energy. TO-DO: Throw error if 180deg bonds occur non-physical for linear alkanes. 
 double angleBendingEnergy(double angle, std::array<int, 3> atoms, Molecule mol) {
 	double I = atoms[0];
 	double J = atoms[1];
@@ -441,9 +498,8 @@ double angleBendingEnergy(double angle, std::array<int, 3> atoms, Molecule mol) 
 	del_theta = theta - reftheta;
 	cb = -0.007;
 
-	if (std::abs(theta - 180.0) <= angle_tol) {														// MMFF treats linear and non linear bonds using a different equations for the angle bending energy.
-		energy = 143.9325 * ka * (1 + cos(theta));
-		std::cout << "we're doomed " << std::endl;
+	if (std::abs(theta - 180.0) <= angle_tol) {							// MMFF treats linear and non linear bonds using a different equations for the angle bending energy.
+		std::cout << "throw error should not have near 180deg angles in linear alkanes " << std::endl;
 	} else {
 		energy = 0.043844 * ka * 0.5 * std::pow(del_theta, 2) * (1 + cb * del_theta);
 	}
@@ -454,7 +510,7 @@ double angleBendingEnergy(double angle, std::array<int, 3> atoms, Molecule mol) 
 
 
 // Function used to evaluate the stretch-bend energy
-double stretchBendEnergy(double angle, std::array<int, 3> atoms, Bond bond, Molecule mol) {
+double stretchBendEnergy(std::array<int, 3> atoms, Bond bond, Molecule mol) {
 	double energy;
 	double kIJK;
 	double kKJI;
@@ -505,7 +561,7 @@ double stretchBendEnergy(double angle, std::array<int, 3> atoms, Bond bond, Mole
 	rkj = euclideanDistance(mol.xyz_mat.row(atoms[1]).t(), mol.xyz_mat.row(atoms[2]).t());
 
 
-	for (int i = 0; i < mol.bond_angles.size(); i++) {
+	for (int i = 0; i < mol.bond_angles.size(); i++) {													// Find the relevant angle 
 		if (mol.bond_angles[i].second[0] == atoms[0] && mol.bond_angles[i].second[1] == atoms[1] && mol.bond_angles[i].second[2] == atoms[2]) {
 			theta = mol.bond_angles[i].first;
 		}
@@ -523,14 +579,51 @@ double stretchBendEnergy(double angle, std::array<int, 3> atoms, Bond bond, Mole
 
 
 // Function used to evaluate the torsion interaction energy
-double torsionEnergy(double torsional_angle, Molecule mol) {
-	double energy;
-	double reference_point = 0.0; 													// Reference such that the torsions be positive
-	double V1 = 0.284;															// Since only linear alkanes are being considered H-C-C-H is the only possible combination that can form a torsional angle.
-	double V2 = -1.386;
-	double V3 = 0.314;
+double torsionEnergy(std::array<int, 4> atoms, Molecule mol) {										
+	double energy;			
+	double V1 = 0.0;	
+	double V2 = 0.0;
+	double V3 = 0.0;
+	double torsional_angle;
 
-	energy = 0.5 * (V1 * (1 + cos(torsional_angle)) + V2 * (1 - cos(2 * torsional_angle)) + V3 * (1 + cos(3 * torsional_angle))) + reference_point;
+	// Atom indices in the torsion: I-J-K-L
+    	int I = atoms[0], J = atoms[1], K = atoms[2], L = atoms[3];
+
+    	// C-C-C-C Torsion (central backbone)
+    	if (mol.atom_vec[I] == 6 && mol.atom_vec[J] == 6 && 
+        	mol.atom_vec[K] == 6 && mol.atom_vec[L] == 6) {
+		V1 = 0.103;
+        	V2 = 0.681; 
+		V3 = 0.332;
+    	}
+
+	// H-C-C-C or C-C-C-H Torsions (terminal H)
+    	else if ((mol.atom_vec[I] == 1 && mol.atom_vec[J] == 6 && 
+        	mol.atom_vec[K] == 6 && mol.atom_vec[L] == 6) || 
+             	(mol.atom_vec[I] == 6 && mol.atom_vec[J] == 6 && 
+              	mol.atom_vec[K] == 6 && mol.atom_vec[L] == 1)) {
+		V1 = 0.639;
+		V2 = -0.630;
+        	V3 = 0.264; 
+    	}
+
+    	// H-C-C-H Torsion (adjacent Hs)
+    	else if ((mol.atom_vec[I] == 1 && mol.atom_vec[J] == 6 && 
+        	mol.atom_vec[K] == 6 && mol.atom_vec[L] == 1)) {
+        	V1 = 0.284;
+        	V2 = -1.386; 
+        	V3 = 0.314;
+	}
+
+
+	for (int i = 0; i < mol.torsional_angles.size(); i++) {                                                                                                      // Find the relevant angle      
+                if (mol.torsional_angles[i].second[0] == atoms[0] && mol.torsional_angles[i].second[1] == atoms[1] && mol.torsional_angles[i].second[2] == atoms[2] && mol.torsional_angles[i].second[3] == atoms[3]) {
+                	torsional_angle = mol.torsional_angles[i].first;
+                }
+        }
+
+	
+	energy = 0.5 * (V1 * (1 + cos(torsional_angle)) + V2 * (1 - cos(2 * torsional_angle)) + V3 * (1 + cos(3 * torsional_angle)));
 
 	return energy;
 }
@@ -554,6 +647,7 @@ double vdwEnergy(std::pair<double, double> atoms, Molecule mol) {
 	double NJ;
 	double GI;
 	double GJ;
+	double denom;
 
 	if (mol.atom_vec[atoms.first] == 6 && mol.atom_vec[atoms.second] == 6) {   			// C - - C interaction
 		alphaI = 1.050;
@@ -566,7 +660,7 @@ double vdwEnergy(std::pair<double, double> atoms, Molecule mol) {
 		GJ = 1.282;
 	}
 
-	if ((mol.atom_vec[atoms.first] == 6 && mol.atom_vec[atoms.second] == 1) || (mol.atom_vec[atoms.first] == 1 && mol.atom_vec[atoms.second] == 6)) {                        // C - - H interaction
+	if (mol.atom_vec[atoms.first] == 6 && mol.atom_vec[atoms.second] == 1) {                        // C - - H interaction
 		alphaI = 1.050;
 		alphaJ = 0.250;
 		AI = 3.890;
@@ -576,6 +670,17 @@ double vdwEnergy(std::pair<double, double> atoms, Molecule mol) {
 		GI = 1.282;
 		GJ = 1.209;
 	}
+
+	if (mol.atom_vec[atoms.first] == 1 && mol.atom_vec[atoms.second] == 6) {                        // C - - H interaction
+                alphaI = 0.250;
+                alphaJ = 1.050;
+                AI = 4.200;
+                AJ = 3.890;
+                NI = 0.800;
+                NJ = 2.490;
+                GI = 1.209;
+                GJ = 1.282;
+        }
 
 	if (mol.atom_vec[atoms.first] == 1 && mol.atom_vec[atoms.second] == 1) {                        // H - - H interaction
 		alphaI = 0.250;
@@ -593,13 +698,15 @@ double vdwEnergy(std::pair<double, double> atoms, Molecule mol) {
 	RJJstar = AJ * std::pow(alphaJ, 0.25);
 	gammaIJ = (RIIstar - RJJstar) * std::pow((RIIstar + RJJstar), -1);
 	RIJstar = 0.5 * (RIIstar + RJJstar) * (1 + 0.2 * (1 - std::exp(-12 * std::pow(gammaIJ, 2))));
-	epsilonIJ = 181.16 * GI * GJ * alphaI * alphaJ * std::pow(std::pow(alphaI * std::pow(NI, -1), 0.5) + std::pow(alphaJ * std::pow(NJ, -1), 0.5), -1) * std::pow(RIJstar, -6);
+	denom = std::sqrt(alphaI / NI) + std::sqrt(alphaJ / NJ);
+	epsilonIJ = 181.16 * GI * GJ * alphaI * alphaJ / denom * std::pow(RIJstar, -6);
 
 	Rij = euclideanDistance(mol.xyz_mat.row(atoms.first).t(), mol.xyz_mat.row(atoms.second).t());
 	energy = epsilonIJ * std::pow(1.07 * RIJstar * std::pow((Rij + 0.07 * RIJstar), -1), 7) * (1.12 * std::pow(RIJstar, 7) * std::pow((std::pow(Rij, 7) + 0.12 * std::pow(RIJstar, 7)), -1) - 2);
 
 	return energy;
 }
+
 
 
 // Function used to evaluate the energy stemming from electrostatic repulsions.
@@ -638,6 +745,9 @@ double electrostaticEnergy(Molecule mol) {
 		}
 
 		charges[i] = qi;
+	}
+	for (int i = 0; i < charges.size(); i++) {
+		std::cout << charges[i] << std::endl;
 	}
 
 	// Now calculate energy for the specified interacting atom pairs
@@ -694,13 +804,13 @@ int main(int argc, char** argv) {
 	// Compute stretch-bend interactions:
 	double stretch_bending_energy;
 	for (int i = 0; i < mol.bond_angles.size(); i++) {
-		stretch_bending_energy += stretchBendEnergy(mol.bond_angles[i].first, mol.bond_angles[i].second, mol.bond_vec[i], mol);
+		stretch_bending_energy += stretchBendEnergy(mol.bond_angles[i].second, mol.bond_vec[i], mol);
 	}
 
 	// Compute torsional energy:
 	double torsional_energy;
 	for (int i = 0; i < mol.torsional_angles.size(); i++) {
-		torsional_energy += torsionEnergy(mol.torsional_angles[i], mol);
+		torsional_energy += torsionEnergy(mol.torsional_angles[i].second, mol);
 	}
 
 	// Compute the VdWEnergy:
@@ -715,7 +825,7 @@ int main(int argc, char** argv) {
 
 
 	double mmff94energy; 
-	mmff94energy = bond_stretching_energy + angle_bending_energy + stretch_bending_energy + torsional_energy + VdW_energy; // + electrostatic_energy; 
+	mmff94energy = bond_stretching_energy + angle_bending_energy + stretch_bending_energy + torsional_energy + VdW_energy; // 0.75 * electrostatic_energy; 
 	
 
 	// Output:	
@@ -757,9 +867,9 @@ int main(int argc, char** argv) {
 	std::cout << std::left  << std::setw(35) << "MMFF94 Energy [kcal/mol]"
                   << std::right << std::setw(10) << mmff94energy << std::endl;
 
+
 	return 0;
 }
-
 
 /*
         // Torsion debugging:
