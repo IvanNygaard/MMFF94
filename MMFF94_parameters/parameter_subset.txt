@@ -49,7 +49,7 @@ type    alpha     N      A      G
 
 ELECTROSTATICS
 type    rho  
-1	      0.0
+1	 0.0
 5      -0.023
 
 
