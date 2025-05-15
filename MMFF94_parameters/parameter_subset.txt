@@ -35,6 +35,8 @@ OUT-OF-PLANE BENDING
 TORSION 
 atom types          V1      V2      V3
 5    1    1    5    0.284  -1.386   0.314
+1    1    1    1    0.103   0.681   0.332
+5    1    1    1    0.639  -0.630   0.264
 
 
 
@@ -47,7 +49,7 @@ type    alpha     N      A      G
 
 ELECTROSTATICS
 type    rho  
-1	0	
+1	      0.0
 5      -0.023
 
 
