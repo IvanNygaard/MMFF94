@@ -715,7 +715,7 @@ double electrostaticEnergy(Molecule mol) {
 
 	std::vector<double> charges(mol.atom_vec.size(), 0.0);
 
-	// First calculate charges for all atoms
+	// Calculate charges for all atoms
 	for (int i = 0; i < mol.atom_vec.size(); i++) {
 		double qi = 0.0;
 		double rhoi;
@@ -742,11 +742,8 @@ double electrostaticEnergy(Molecule mol) {
 
 		charges[i] = qi;
 	}
-	for (int i = 0; i < charges.size(); i++) {
-		std::cout << charges[i] << std::endl;
-	}
 
-	// Now calculate energy for the specified interacting atom pairs
+	// Calculate energy for the specified interacting atom pairs
 	for (int i = 0; i < mol.interacting_atoms.size(); i++) {
 		int atom1 = mol.interacting_atoms[i].first;
 		int atom2 = mol.interacting_atoms[i].second;
