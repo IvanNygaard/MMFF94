@@ -3,7 +3,7 @@ An attemnt at a partial implementation of the MMFF94 chemistry force field in C+
 "Merck Molecular Force Field. I. Basis, Form, Scope, Parameterization, and Performance of MMFF94" by T. A. Halgren, J. Comp. Chem., 17, 490–519 (1996).
 
 MMFF parameters were retrieved from:
-https://ftp.wiley.com/public/journals-back/jcc/suppmat/17/490
+https://ftp.wiley.com/public/journals-back/jcc/suppmat/17/490.
 
 Molecular geometries for sample inputs were either retrieved from:
 https://cccbdb.nist.gov/expgeom1x.asp
