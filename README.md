@@ -12,7 +12,7 @@ or built using Avogadro.
 Analytical definitions of angles can be found in Chapter 4 of the book:
 https://archive.org/details/E.BrightWilsonJR.J.C.DeciusPaulC.CrossMolecularVibrationsTheTheoryOfInfraredAndRama/page/n59/mode/2up?view=theater. 
 
-Ignore the note "My code: 0.807905 kcal/mol" in the presentation — this result was based on a geometry I built manually, which likely differs from the one Halgren used. I later ran the same calculation (barrier height of gauche–anti n-butane) using RDKit’s MMFF94 implementation and obtained 0.7822 kcal/mol, while my own code (using the same geometry) yielded 0.7852941 kcal/mol. I recall reading that MMFF94 parameters may have been updated at some point, so it's unclear whether RDKit uses the exact same parameter set I do or if there's still a pesky bug hiding somewhere in my code.
+Ignore the note "My code: 0.807905 kcal/mol" in the presentation — this result was based on a geometry I built manually, which likely differs from the one Halgren used. I later ran the same calculation (barrier height of gauche–anti n-butane) using RDKit’s MMFF94 implementation and obtained 0.7822 kcal/mol, while my own code (using the same geometry) yielded 0.7852941 kcal/mol. I recall reading that MMFF94 parameters may have been updated at some point, so it's unclear to me whether RDKit uses the exact same parameter set I do or if there's still a pesky bug hiding somewhere in my code.
 
 ## Installation & Usage
 ```bash
