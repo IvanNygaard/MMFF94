@@ -1,5 +1,5 @@
 # MMFF94
-An attemnt at a partial implementation of the MMFF94 chemistry force field in C++, developed as a final project for the course CHEM179: Numerical Algorithms Applied to Computational Quantum Chemistry at UC Berkeley (Spring 2025). The implementation is partial in the sense that it only supports saturated hydrocarbons. Most of the work is based on the equations presented in the article:
+An attemnt at a partial implementation of the MMFF94 chemistry force field in C++, developed as a final project for the course "CHEM179: Numerical Algorithms Applied to Computational Quantum Chemistry" at UC Berkeley (Spring 2025). The implementation is partial in the sense that it only supports saturated hydrocarbons. Most of the work is based on the equations presented in the article:
 "Merck Molecular Force Field. I. Basis, Form, Scope, Parameterization, and Performance of MMFF94" by T. A. Halgren, J. Comp. Chem., 17, 490–519 (1996).
 
 MMFF parameters were retrieved from:
